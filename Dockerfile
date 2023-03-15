@@ -7,7 +7,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflag
 
 FROM scratch as production
 LABEL maintainer "Daniel Ramirez <dxas90@gmail.com>"
-LABEL source "https://github.com/dxas90/learn.git"
+LABEL source "https://github.com/dxas90/httperrors.git"
 COPY --from=builder /build/main /app/
 COPY --from=builder /build/templates /app/templates
 COPY --from=builder /build/static /app/static

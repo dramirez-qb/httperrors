@@ -117,7 +117,7 @@ func main() {
 	mux.HandlerFunc("GET", "/", use(helloHandler, withLogging, withTracing))
 	mux.HandlerFunc("GET", "/healthz", use(healthCheckHandler))
 	mux.HandlerFunc("GET", "/ping", use(pongHandler, withLogging, withTracing))
-	// mux.Handler("GET", "/static", http.FileServer(http.FS(content)))
+	mux.HandlerFunc("GET", "/favicon.ico", use(pongHandler, withLogging, withTracing))
 
 	mux.NotFound = use(oldcustomErrorHandler, withLogging, withTracing)
 	log.Printf("starting listening on %s\n", port)

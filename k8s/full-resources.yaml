@@ -1,0 +1,194 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httperrors
+  labels:
+      app.kubernetes.io/instance: httperrors
+      app.kubernetes.io/name: httperrors
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httperrors
+      app.kubernetes.io/instance: httperrors
+      app.kubernetes.io/name: httperrors
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 2
+  template:
+    metadata:
+      labels:
+        app: httperrors
+        app.kubernetes.io/instance: httperrors
+        app.kubernetes.io/name: httperrors
+    spec:
+      containers:
+        - name: httperrors
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          image: dxas90/httperrors:latest
+          ports:
+            - name: web
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 25m
+              memory: 263M
+            requests:
+              cpu: 25m
+              memory: 263M
+          # https://blog.pipetail.io/posts/2020-05-04-most-common-mistakes-k8s/
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: web
+            initialDelaySeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 5
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext:
+        fsGroup: 65534
+      restartPolicy: Always
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httperrors
+  labels:
+    app.kubernetes.io/instance: httperrors
+    app.kubernetes.io/name: httperrors
+spec:
+  ports:
+    - name: web
+      port: 8080
+      targetPort: web
+
+  selector:
+    app: httperrors
+    app.kubernetes.io/instance: httperrors
+    app.kubernetes.io/name: httperrors
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httperrors-ingress-redirect
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: infrastructure-web-redirect@kubernetescrd
+spec:
+  rules:
+    - host: dxas90.duckdns.org
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httperrors
+                port:
+                  name: web
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: httperrors-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod-traefik
+    ingress.kubernetes.io/proxy-body-size: '0'
+    ingress.kubernetes.io/ssl-redirect: 'true'
+    konghq.com/override: https-only
+    kubernetes.io/ingress.class: traefik
+    kubernetes.io/tls-acme: 'true'
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: 'true'
+    traefik.ingress.kubernetes.io/router.middlewares: infrastructure-custom-headers@kubernetescrd
+spec:
+  tls:
+    - hosts:
+        - dxas90.duckdns.org
+      secretName: dxas90-duckdns-org-prod
+  rules:
+    - host: dxas90.duckdns.org
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httperrors
+                port:
+                  name: web
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: httperrors
+  labels:
+    app.kubernetes.io/instance: httperrors
+    app.kubernetes.io/name: httperrors
+spec:
+  scaleTargetRef:
+    kind: Deployment
+    name: httperrors
+    apiVersion: apps/v1
+  minReplicas: 1
+  maxReplicas: 20
+  behavior:
+    scaleDown:
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+  metrics:
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Value
+          averageValue: 100Mi
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: httperrors
+  labels:
+    app.kubernetes.io/name: httperrors
+    app.kubernetes.io/instance: httperrors
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: httperrors
+      app.kubernetes.io/instance: httperrors
