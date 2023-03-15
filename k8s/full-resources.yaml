@@ -192,3 +192,17 @@ spec:
     matchLabels:
       app.kubernetes.io/name: httperrors
       app.kubernetes.io/instance: httperrors
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: custom-errors
+spec:
+  errors:
+    status:
+      - "400-599"
+    query: /track/{status}/{url}
+    service:
+      name: httperrors
+      port: web
+---
