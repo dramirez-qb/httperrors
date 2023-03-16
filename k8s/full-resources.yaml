@@ -89,59 +89,6 @@ spec:
     app.kubernetes.io/instance: httperrors
     app.kubernetes.io/name: httperrors
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: httperrors-ingress-redirect
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: infrastructure-web-redirect@kubernetescrd
-spec:
-  rules:
-    - host: dxas90.duckdns.org
-      http:
-        paths:
-          - path: /
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: httperrors
-                port:
-                  name: web
----
-
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: httperrors-ingress
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod-traefik
-    ingress.kubernetes.io/proxy-body-size: '0'
-    ingress.kubernetes.io/ssl-redirect: 'true'
-    konghq.com/override: https-only
-    kubernetes.io/ingress.class: traefik
-    kubernetes.io/tls-acme: 'true'
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: 'true'
-    traefik.ingress.kubernetes.io/router.middlewares: infrastructure-custom-headers@kubernetescrd
-spec:
-  tls:
-    - hosts:
-        - dxas90.duckdns.org
-      secretName: dxas90-duckdns-org-prod
-  rules:
-    - host: dxas90.duckdns.org
-      http:
-        paths:
-          - path: /
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: httperrors
-                port:
-                  name: web
----
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -193,6 +140,7 @@ spec:
       app.kubernetes.io/name: httperrors
       app.kubernetes.io/instance: httperrors
 ---
+# https://doc.traefik.io/traefik/middlewares/http/errorpages/
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
