@@ -68,9 +68,11 @@ func pongHandler(response http.ResponseWriter, request *http.Request) {
 }
 
 func helloHandler(response http.ResponseWriter, request *http.Request) {
-	response.WriteHeader(http.StatusOK)
-	response.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(response, `Hello World`)
+	track := Track{Site: request.Host, Code: http.StatusOK, Extra: ""}
+	templates := template.Must(template.ParseFiles("templates/index.html"))
+	if err := templates.ExecuteTemplate(response, "index.html", track); err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func oldcustomErrorHandler(response http.ResponseWriter, request *http.Request) {
